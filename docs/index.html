@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --page: #D9EEFA;  --page-line: #C4E2F4;
+      --body: #FF8FC0;  --ink: #3A1F1F;
+      --text: #5A2E0F;  --muted: #8A5A40;
+      --display: #EAF8FF;
+      --key: #CFEAFA;   --key-shadow: #4A9CC8;
+      --accent: #FF5FA2; --accent-shadow: #B8346F;
+      --offset: 4px;
+    }
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0; min-height: 100vh; padding: 16px;
+      display: grid; place-items: center;
+      color: var(--text);
+      font-family: "Rubik", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      /* woven texture from two sets of thin lines, no image needed */
+      background-color: var(--page);
+      background-image:
+        repeating-linear-gradient(0deg, var(--page-line) 0 1px, transparent 1px 8px),
+        repeating-linear-gradient(90deg, var(--page-line) 0 1px, transparent 1px 8px);
+    }
+
+    .calculator {
+      position: relative; isolation: isolate;
+      width: min(100%, 360px); padding: 16px;
+      background: var(--body);
+      border: 2px solid var(--ink); border-radius: 14px;
+    }
+    /* second layer behind the body so it looks thick */
+    .calculator::before {
+      content: ""; position: absolute; inset: 0; z-index: -1;
+      transform: translate(8px, 8px);
+      background: var(--accent);
+      border: 2px solid var(--ink); border-radius: 14px;
+    }
+
+    .display {
+      display: flex; flex-direction: column; justify-content: flex-end;
+      min-height: 5.5rem; margin-bottom: 16px; padding: 10px 14px;
+      overflow: hidden; text-align: right;
+      background: var(--display);
+      border: 2px solid var(--ink); border-radius: 8px;
+    }
+    .expression {
+      min-height: 1.3em; overflow-x: auto; white-space: nowrap;
+      font-size: 0.95rem; font-weight: 500; color: var(--muted);
+      scrollbar-width: none;
+    }
+    .result {
+      overflow-x: auto; white-space: nowrap;
+      font-size: 2.6rem; font-weight: 800; line-height: 1.15;
+      scrollbar-width: none;
+    }
+
+    .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+    .key {
+      display: grid; place-items: center; padding: 0;
+      aspect-ratio: 1 / 0.9;
+      font: inherit; font-size: 1.5rem; font-weight: 700; color: var(--text);
+      background: var(--key);
+      border: 2px solid var(--ink); border-radius: 10px;
+      box-shadow: var(--offset) var(--offset) 0 var(--key-shadow);
+      cursor: pointer;
+      transition: transform 0.08s, box-shadow 0.08s, filter 0.12s;
+    }
+    .key.accent {
+      background: var(--accent); color: var(--ink);
+      box-shadow: var(--offset) var(--offset) 0 var(--accent-shadow);
+    }
+    .key:hover { filter: brightness(1.06); }
+    /* push the key down and right by the shadow size, like a real key */
+    .key:active { transform: translate(var(--offset), var(--offset)); box-shadow: none; }
+    .key:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+    .key svg { width: 1.5em; height: 1.5em; }
+  </style>
+</head>
+<body>
+  <main class="calculator">
+    <div class="display">
+      <div class="expression" id="expression"></div>
+      <div class="result" id="result" aria-live="polite" aria-atomic="true">0</div>
+    </div>
+
+    <div class="keys">
+      <button class="key" data-action="clear" aria-label="Clear">C</button>
+      <button class="key" data-action="negate" aria-label="Toggle positive or negative">±</button>
+      <button class="key" data-action="percent" aria-label="Percent">%</button>
+      <button class="key accent" data-action="operator" data-value="divide" aria-label="Divide">÷</button>
+
+      <button class="key" data-action="digit" data-value="7" aria-label="7">7</button>
+      <button class="key" data-action="digit" data-value="8" aria-label="8">8</button>
+      <button class="key" data-action="digit" data-value="9" aria-label="9">9</button>
+      <button class="key accent" data-action="operator" data-value="multiply" aria-label="Multiply">×</button>
+
+      <button class="key" data-action="digit" data-value="4" aria-label="4">4</button>
+      <button class="key" data-action="digit" data-value="5" aria-label="5">5</button>
+      <button class="key" data-action="digit" data-value="6" aria-label="6">6</button>
+      <button class="key accent" data-action="operator" data-value="subtract" aria-label="Subtract">−</button>
+
+      <button class="key" data-action="digit" data-value="1" aria-label="1">1</button>
+      <button class="key" data-action="digit" data-value="2" aria-label="2">2</button>
+      <button class="key" data-action="digit" data-value="3" aria-label="3">3</button>
+      <button class="key accent" data-action="operator" data-value="add" aria-label="Add">+</button>
+
+      <button class="key" data-action="backspace" aria-label="Backspace">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 5h11a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H9l-6-7 6-7z"/>
+          <path d="M12 9l5 6M17 9l-5 6"/>
+        </svg>
+      </button>
+      <button class="key" data-action="digit" data-value="0" aria-label="0">0</button>
+      <button class="key" data-action="decimal" aria-label="Decimal point">.</button>
+      <button class="key accent" data-action="equals" aria-label="Equals">=</button>
+    </div>
+  </main>
+
+  <script>
+    // Leave empty to do the math in the browser (works on GitHub Pages with no backend).
+    // Set to "http://localhost:8080" to use the Spring Boot API instead.
+    const API_BASE_URL = "";
+
+    const SYMBOLS = { add: "+", subtract: "−", multiply: "×", divide: "÷" };
+    const KEY_TO_OPERATION = { "+": "add", "-": "subtract", "*": "multiply", "/": "divide" };
+
+    const resultEl = document.getElementById("result");
+    const expressionEl = document.getElementById("expression");
+
+    let entry = "0";       // number being typed, or the running total
+    let stored = null;     // number waiting on the left of the operator
+    let op = null;         // pending operation, e.g. "add"
+    let parts = [];        // top line pieces, e.g. ["18", "×", "3", "+"]
+    let fresh = false;     // true right after an operator or =
+    let done = false;      // true right after =
+    let busy = false;      // ignore keys while waiting on the API
+
+    /* ---------- Math: Spring API or plain JavaScript ---------- */
+
+    async function calculate(operation, a, b) {
+      if (!API_BASE_URL) return calculateInBrowser(operation, a, b);
+
+      let response;
+      try {
+        response = await fetch(API_BASE_URL + "/api/calculate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ a: Number(a), b: b === undefined ? undefined : Number(b), operation })
+        });
+      } catch {
+        throw new Error("Can't reach the calculator server.");
+      }
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || "Something went wrong.");
+      return String(data.result);
+    }
+
+    function calculateInBrowser(operation, a, b) {
+      const x = Number(a), y = Number(b);
+      let result;
+      switch (operation) {
+        case "add": result = x + y; break;
+        case "subtract": result = x - y; break;
+        case "multiply": result = x * y; break;
+        case "divide":
+          if (y === 0) throw new Error("You can't divide by zero.");
+          result = x / y;
+          break;
+        case "percent": result = x / 100; break;
+        case "negate": result = -x; break;
+      }
+      // rounding to 12 digits hides floating-point noise, so 0.1 + 0.2 shows 0.3
+      return String(Number(result.toPrecision(12)));
+    }
+
+    // Runs a calculation; on failure shows the message and returns null.
+    async function calc(operation, a, b) {
+      try {
+        return await calculate(operation, a, b);
+      } catch (error) {
+        reset();
+        expressionEl.textContent = error.message;
+        resultEl.textContent = "Error";
+        return null;
+      }
+    }
+
+    /* ---------- Display ---------- */
+
+    function show() {
+      resultEl.textContent = entry;
+      // shrink long numbers so they fit
+      resultEl.style.fontSize = entry.length > 12 ? "1.6rem" : entry.length > 9 ? "2rem" : "2.6rem";
+
+      let top = parts.join(" ");
+      if (done) top += " =";
+      else if (op && !fresh) top += " " + entry;
+      expressionEl.textContent = top;
+      expressionEl.scrollLeft = expressionEl.scrollWidth;
+    }
+
+    function reset() {
+      entry = "0"; stored = null; op = null; parts = [];
+      fresh = false; done = false;
+      show();
+    }
+
+    /* ---------- Keys ---------- */
+
+    function typeDigit(digit) {
+      if (done) reset();
+      if (fresh) { entry = "0"; fresh = false; }
+      if (entry === "0") entry = digit;
+      else if (entry.length < 15) entry += digit;
+      show();
+    }
+
+    function typeDecimal() {
+      if (done) reset();
+      if (fresh) { entry = "0"; fresh = false; }
+      if (!entry.includes(".")) entry += ".";
+      show();
+    }
+
+    function backspace() {
+      if (done || fresh) return;
+      entry = entry.slice(0, -1);
+      if (entry === "" || entry === "-") entry = "0";
+      show();
+    }
+
+    async function setOperator(name) {
+      if (done) { parts = []; done = false; }   // keep going with the last result
+
+      if (op && !fresh) {
+        // chained, e.g. "18 × 3 +" works out 18 × 3 first
+        const total = await calc(op, stored, entry);
+        if (total === null) return;
+        parts.push(entry);
+        stored = entry = total;
+      } else if (op) {
+        parts.pop();                              // changed their mind about the operator
+      } else {
+        stored = entry;
+        parts.push(entry);
+      }
+
+      parts.push(SYMBOLS[name]);
+      op = name;
+      fresh = true;
+      show();
+    }
+
+    async function equals() {
+      if (!op || fresh) return;
+      const typed = entry;
+      const total = await calc(op, stored, typed);
+      if (total === null) return;
+      parts.push(typed);
+      entry = total; stored = null; op = null;
+      done = true; fresh = true;
+      show();
+    }
+
+    async function applyToEntry(operation) {      // used by ± and %
+      const value = await calc(operation, entry);
+      if (value === null) return;
+      entry = value;
+      show();
+    }
+
+    async function press(action, value) {
+      if (busy) return;
+      busy = true;
+      try {
+        if (action === "digit") typeDigit(value);
+        else if (action === "decimal") typeDecimal();
+        else if (action === "backspace") backspace();
+        else if (action === "clear") reset();
+        else if (action === "operator") await setOperator(value);
+        else if (action === "equals") await equals();
+        else if (action === "negate") await applyToEntry("negate");
+        else if (action === "percent") await applyToEntry("percent");
+      } finally {
+        busy = false;
+      }
+    }
+
+    document.querySelector(".keys").addEventListener("click", (event) => {
+      const key = event.target.closest("button");
+      if (key) press(key.dataset.action, key.dataset.value);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const k = event.key;
+
+      if (/^[0-9]$/.test(k)) press("digit", k);
+      else if (k === ".") press("decimal");
+      else if (k in KEY_TO_OPERATION) { event.preventDefault(); press("operator", KEY_TO_OPERATION[k]); }
+      else if (k === "Enter" || k === "=") { event.preventDefault(); press("equals"); }
+      else if (k === "Backspace") press("backspace");
+      else if (k === "Escape") press("clear");
+      else if (k === "%") press("percent");
+    });
+
+    reset();
+  </script>
+</body>
+</html>
